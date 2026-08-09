@@ -65,20 +65,25 @@ def pyvipe():
     if sys.stdin.isatty() is False:
         text = sys.stdin.read()
 
-    stdin_fd = os.open('/dev/tty', os.O_RDONLY)
-    os.dup2(stdin_fd, 0)
-    os.close(stdin_fd)
+    # redirect stdin and stdout's file descriptors to 0 and 1, respectively.
+    try:
+        stdin_fd = os.open('/dev/tty', os.O_RDONLY)
+        os.dup2(stdin_fd, 0)
+        os.close(stdin_fd)
+
+        stdout_fd = os.open('/dev/tty', os.O_WRONLY)
+        os.dup2(stdout_fd, 1)
+        os.close(stdout_fd)
+
+    except FileNotFoundError:
+        pass
 
     out = os.dup(1)
 
-    stdout_fd = os.open('/dev/tty', os.O_WRONLY)
-    os.dup2(stdout_fd, 1)
-    os.close(stdout_fd)
-
     try:
-        with tempfile.NamedTemporaryFile(suffix=suffix) as temporary_file:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete_on_close=False) as temporary_file:
             temporary_file.write(text.encode())
-            temporary_file.flush()
+            temporary_file.file.close()
 
             try:
                 subprocess.check_call([*editor.split(), temporary_file.name])
